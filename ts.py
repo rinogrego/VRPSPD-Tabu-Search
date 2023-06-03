@@ -1,5 +1,5 @@
 import lp
-from lp import np
+import numpy as np
 from itertools import permutations, combinations
 
 class Tabu_Search(lp.LP):
@@ -8,6 +8,7 @@ class Tabu_Search(lp.LP):
         self.tabu_tenure = tabu_tenure
         self.N_iter = N_iter
         self.best_solution = None
+        self.initial_solution = None
         
     def get_tabu_structure(self):
         tabu_strucutre = {}
@@ -31,8 +32,22 @@ class Tabu_Search(lp.LP):
             edges_matrix[edge] = 1
         return edges_matrix
         
-    def get_initial_solution(self):
-        return [0, 1, 3, 2, 0]
+    def get_initial_solution(self, perm_search=4):
+        if self.initial_solution is not None:
+            return self.initial_solution
+        
+        V_C = [node for node in self.graph.nodes if node != 0]
+        all_possible_paths = [[0] + list(p) + [0] for p in permutations(V_C, min(len(V_C), perm_search))]
+        
+        for candidate_init_path in all_possible_paths:
+            if not self.check_constraints(candidate_init_path):
+                return candidate_init_path
+            
+        if perm_search < len(V_C):
+            # keep searching by increasing the search space by adding the permutation number
+            return self.get_initial_solution(self, perm_search=perm_search+1)
+        else:
+            return f"No possible solution found after P_r={perm_search}."
     
     def evaluate_objective_function(self, path):
         """Evaluate the objective function from a given path
@@ -218,7 +233,7 @@ if __name__ == "__main__":
     ts_brute = Tabu_Search(lp)
     ts_brute.run_brute()
     
-    ts = Tabu_Search(lp)
+    ts = Tabu_Search(lp, N_iter=5)
     ts.run()
     
     print("Best solution (brute force)")
