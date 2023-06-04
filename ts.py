@@ -2,6 +2,11 @@ import lp
 import numpy as np
 from itertools import permutations, combinations
 
+import os
+import sys
+from datetime import datetime
+import pprint
+
 class Tabu_Search(lp.LP):
     def __init__(self, lp, N_iter=10, tabu_tenure=5, penalty_value=5, initial_solution=None):
         super().__init__(**lp.__dict__)
@@ -202,7 +207,6 @@ class Tabu_Search(lp.LP):
         print("Initial value:", best_value)
         print()
         
-        import pprint
         while i_termination < self.N_iter:
             
             # process through all possible swaps as neighborhood of current solution
@@ -308,6 +312,17 @@ class Tabu_Search(lp.LP):
     
 
 if __name__ == "__main__":
+    
+    log_folder = os.path.join(os.getcwd(), "log")
+    LOG_FILE = f"{datetime.now().strftime('%m_%d_%Y_%H_%M_%S')}_Log-TS.log"
+    os.makedirs(log_folder, exist_ok=True)
+    LOG_FILE_PATH = os.path.join(log_folder, LOG_FILE)
+    
+    if LOG_FILE_PATH is not None:
+        original_stdout = sys.stdout
+        f = open(LOG_FILE_PATH, "a")
+        sys.stdout = f
+    
     lp = lp.construct_problem()
     initial_solution = [0, 1, 2, 3, 4, 0]
     penalty_value = 10000
@@ -326,3 +341,6 @@ if __name__ == "__main__":
     print("Best solution (tabu search)")
     print("Path:", ts.get_best_solution())
     print("Value:", ts.get_best_value())
+    
+    if LOG_FILE_PATH is not None:
+        sys.stdout = original_stdout
