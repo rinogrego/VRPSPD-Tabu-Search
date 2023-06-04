@@ -1,13 +1,13 @@
 import numpy as np
 import networkx as nx
 
-COST_TEST = np.array([
+COST = np.array([
     [ 0, 25, 15, 10],
     [25,  0,  5, 30],
     [15,  5,  0, 20],
     [10, 30, 20,  0],
 ])
-G = nx.from_numpy_array(COST_TEST, create_using=nx.DiGraph)
+G = nx.from_numpy_array(COST, create_using=nx.DiGraph)
 V = G.nodes
 V_C = [node for node in G.nodes if node != 0]
 PICKUP = np.array([0, 30, 60, 20])

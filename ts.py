@@ -3,16 +3,26 @@ import numpy as np
 from itertools import permutations, combinations
 
 class Tabu_Search(lp.LP):
-    def __init__(self, lp, N_iter=100, tabu_tenure=10):
+    def __init__(self, lp, N_iter=10, tabu_tenure=5, penalty_value=5, initial_solution=None):
         super().__init__(**lp.__dict__)
         self.tabu_tenure = tabu_tenure
         self.N_iter = N_iter
+        self.penalty_value = penalty_value
+        self.initial_solution = initial_solution
         self.best_solution = None
-        self.initial_solution = None
         
     def get_tabu_structure(self):
-        tabu_strucutre = {}
-        pass
+        tabu_structure = {}
+        V_C = [node for node in self.graph.nodes if node != 0]
+        for swap in combinations(V_C, 2):
+            tabu_structure[swap] = {
+                "tabu_time": 0,
+                "move_value": 0,
+                "freq": 0,
+                "penalty": 0
+            }
+            
+        return tabu_structure
         
     def construct_edge_order(self, node_order):
         """Turns something like [0, 1, 2, 3, 4, 0] to [(0, 1), (1, 2), (2, 3), (3, 4), (4, 0)]
@@ -34,8 +44,12 @@ class Tabu_Search(lp.LP):
         
     def get_initial_solution(self, perm_search=4):
         if self.initial_solution is not None:
-            return self.initial_solution
-        
+            if self.check_constraints(self.initial_solution):
+                return self.initial_solution
+            else:
+                print("Given initial solution {0} violates constraints.".format(self.initial_solution))
+                print("New initial solution will be searched.")
+
         V_C = [node for node in self.graph.nodes if node != 0]
         all_possible_paths = [[0] + list(p) + [0] for p in permutations(V_C, min(len(V_C), perm_search))]
         
@@ -100,33 +114,31 @@ class Tabu_Search(lp.LP):
         D = self.delivery
         Q = self.capacity
         Y, Z = self.construct_YZ_flow(path_as_edge_order)
-        print("Matriks flow Y:")
-        print(Y)
-        print("Matriks flow Z:")
-        print(Z)
-        print("Matriks flow Y + Z:")
-        print(Y + Z)
+        # print("Matriks flow Y:")
+        # print(Y)
+        # print("Matriks flow Z:")
+        # print(Z)
+        # print("Matriks flow Y + Z:")
+        # print(Y + Z)
 
         for constraint in self.constraints:
             # print(constraint)
             if eval(constraint) == False:
-                print("The following constraint is violated:\n", constraint)
+                print("The path {0} violates the following constraint:\n{1}\n".format(path, constraint))
                 return False
         return True
     
-    def get_solution_neighborhood(self, path):
-        """Get neighborhood of possible solutions of current solution
-        """
-        path_neighborhood = []
-        # node swap
-        non_depot_nodes = path[1:-1]
-        for node_1, node_2 in combinations(non_depot_nodes, 2):
-            _non_depot_nodes = non_depot_nodes.copy()
-            i = _non_depot_nodes.index(node_1)
-            j = _non_depot_nodes.index(node_2)
-            _non_depot_nodes[i], _non_depot_nodes[j] = _non_depot_nodes[j], _non_depot_nodes[i]
-            path_neighborhood.append([0] + _non_depot_nodes + [0])
-        return path_neighborhood
+    def swap_move(self, path, node_i, node_j):
+        '''Takes a list (solution)
+        returns a new neighbor solution with i, j swapped
+       '''
+        path = path.copy()
+        # job index in the solution:
+        i_index = path.index(node_i)
+        j_index = path.index(node_j)
+        #Swap
+        path[i_index], path[j_index] = path[j_index], path[i_index]
+        return path
     
     def run_brute(self):
         print("="*100)
@@ -134,7 +146,7 @@ class Tabu_Search(lp.LP):
         V_C = [node for node in self.graph.nodes if node != 0]
         all_possible_paths = [[0] + list(p) + [0] for p in permutations(V_C, len(V_C))]
         
-        init_path = self.get_initial_solution() # returns: [0, 1, 3, 2, 0]
+        init_path = self.get_initial_solution()
         
         current_best_path = init_path
         current_best_val = self.evaluate_objective_function(current_best_path)
@@ -172,49 +184,117 @@ class Tabu_Search(lp.LP):
         
         init_path = self.get_initial_solution() # returns: [0, 1, 3, 2, 0]
         
-        current_best_path = init_path
-        current_best_val = self.evaluate_objective_function(current_best_path)
+        current_path = init_path
+        current_value = self.evaluate_objective_function(current_path)
+        best_path = init_path
+        best_value = self.evaluate_objective_function(best_path)
+        tabu_structure = self.get_tabu_structure()
+        tenure = self.tabu_tenure
+        # iteration to keep track of tabu tenure. instead of reducing the value
+        # of tabu tenure of every swap in every iteration, just increase the
+        # iteration and tabu tenure is tracked by the time took to reach 
+        # the particular swap
+        i = 1
+        # iteration for termination if no better solution is found
+        i_termination = 0
         
-        print("Initial solution:", current_best_path)
-        print("Initial value:", current_best_val)
+        print("Initial solution:", best_path)
+        print("Initial value:", best_value)
         print()
         
-        i = 0
-        while i < self.N_iter:
-            i += 1
-            print(f"{'Iteration': <30}:", i)
-            print(f"{'Current best path': <30}:", current_best_path)
-            # get neighborhood solution of current solution as new candidate solutions
-            path_neighborhood = self.get_solution_neighborhood(current_best_path)
+        import pprint
+        while i_termination < self.N_iter:
             
-            # check the objective value of each candidate solution
-            for candidate_path in path_neighborhood:
-                print("Checking path:", candidate_path)
-                candidate_val = self.evaluate_objective_function(candidate_path)
-                print("Value:", candidate_val)
-                if not self.check_constraints(candidate_path):
-                    print("Constraints violated!")
-                    print()
-                    continue
-                print("Constraints are not violated. Candidate solution is feasible!")
-                
-                print(f"Compare: {candidate_val} < {current_best_val}")
-                if candidate_val < current_best_val:
-                    print("Current value is better, this solution is currently the best!")
-                    current_best_path = candidate_path
-                    current_best_val = self.evaluate_objective_function(current_best_path)
-                else:
-                    print(f"Currently checked value is not better than before. The path {candidate_path} is not chosen")
-                    # aspiration criteria
+            # process through all possible swaps as neighborhood of current solution
+            for move in tabu_structure.keys():
+                candidate_path = self.swap_move(best_path, move[0], move[1])
+                candidate_path_value = self.evaluate_objective_function(candidate_path)
+                tabu_structure[move]["move_value"] = candidate_path_value
+                tabu_structure[move]["penalty"] = candidate_path_value + (tabu_structure[move]["freq"] * self.penalty_value)
                     
-                print()
-
-            # intensification
-            
-            # diversification
+            # find admissible move by intensification phase
+                
+            # find admissible move by diversification phase
+            while True:
+                print("\nTabu Structure:")
+                pprint.pprint(tabu_structure)
+                # select the move with the lowest penalized value
+                best_move = min(tabu_structure, key=lambda x: tabu_structure[x]["penalty"])
+                
+                if tabu_structure[best_move]["penalty"] == np.inf:
+                    print(f"{'status': <20}: All available moves are Tabu and Inadmissible")
+                    i_termination += 1
+                    break
+                    
+                move_value = tabu_structure[best_move]["move_value"]
+                tabu_time = tabu_structure[best_move]["tabu_time"]
+                print(f"{'Current_path': <20}:", best_path)
+                print(f"{'best_move': <20}:", best_move)
+                print(f"{'move_value': <20}:", move_value)
+                print(f"{'best_move_penalty': <20}:", tabu_structure[best_move]["penalty"])
+                print(f"{'i_termination': <20}:", i_termination)
+                print(f"{'iteration': <20}:", i)
+                # if the least penalized move not tabu
+                if tabu_time < i:
+                    # make the move
+                    current_path = self.swap_move(current_path, best_move[0], best_move[1])
+                    current_value = self.evaluate_objective_function(current_path)
+                    # least penalized move is a better move
+                    if move_value < best_value:
+                        # least penalized move don't violate constraints
+                        if self.check_constraints(current_path):
+                            best_path = current_path
+                            best_value = current_value
+                            print(f"{'status': <20}: Best Improving => Admissible")
+                            i_termination = 0
+                        # least penalized move violates constraints
+                        else:
+                            print(f"{'status': <20}: Best Improving => Infeasible")
+                            i_termination += 1
+                    # least penalized move is not a better move
+                    else:
+                        print(f"{'status': <20}: Least non-Improving => Admissible")
+                        i_termination += 1
+                    # update tabu_time and frequency of swap
+                    tabu_structure[best_move]["tabu_time"] = i + tenure
+                    tabu_structure[best_move]["freq"] += 1
+                    i += 1
+                    break
+                # if the move is tabu
+                else:
+                    # Aspiration criteria
+                    # tabu move have better value
+                    if move_value < best_value:
+                        # tabu move don't violate constraints
+                        if self.check_constraints(current_path):
+                            current_path = self.swap_move(current_path, best_move[0], best_move[1])
+                            current_value = self.evaluate_objective_function(current_path)
+                            best_path = current_path
+                            best_value = current_value
+                            tabu_structure[best_move]['freq'] += 1
+                            i_termination = 0 
+                            i += 1
+                            print(f"{'status': <20}: Aspiration => Admissible")
+                            break
+                        # tabu move violates constraints
+                        else:
+                            tabu_structure[best_move]['penalty'] = np.inf
+                            print(f"{'status': <20}: Aspiration => Infeasible")
+                            # continue searching better move
+                            continue
+                    # tabu move is not even better
+                    else:
+                        tabu_structure[best_move]['penalty'] = np.inf
+                        print(f"{'status': <20}: Tabu => Inadmissible")
+                        # continue searching better move
+                        continue
         
-        self.best_solution = current_best_path
-        print("TABU SEARCH FINISHED")
+        self.best_solution = best_path
+        print("\nTABU SEARCH FINISHED")
+        print(f"{'best_path': <20}:", best_path)
+        print(f"{'best_value': <20}:", best_value)
+        print(f"{'i_termination': <20}:", i_termination)
+        print(f"{'iteration': <20}:", i)
         print("="*100)
     
     def get_best_solution(self):
@@ -229,17 +309,20 @@ class Tabu_Search(lp.LP):
 
 if __name__ == "__main__":
     lp = lp.construct_problem()
+    initial_solution = [0, 1, 2, 3, 4, 0]
+    penalty_value = 10000
+    # initial_solution = None
     
-    ts_brute = Tabu_Search(lp)
+    ts_brute = Tabu_Search(lp, initial_solution=initial_solution, penalty_value=penalty_value)
     ts_brute.run_brute()
     
-    ts = Tabu_Search(lp, N_iter=5)
+    ts = Tabu_Search(lp, N_iter=10, initial_solution=initial_solution, penalty_value=penalty_value)
     ts.run()
     
     print("Best solution (brute force)")
     print("Path:", ts_brute.get_best_solution())
     print("Value:", ts_brute.get_best_value())
-    
+    print()
     print("Best solution (tabu search)")
     print("Path:", ts.get_best_solution())
     print("Value:", ts.get_best_value())

@@ -16,11 +16,11 @@ def get(instance: str, seed=None):
         return "No instance found"
             
     G = _instance.G
-    COST_TEST = _instance.COST_TEST
+    COST = _instance.COST
     OBJ_FUNC = _instance.OBJ_FUNC
     CONSTRAINTS = _instance.CONSTRAINTS
     PICKUP = _instance.PICKUP
     DELIVERY = _instance.DELIVERY
     CAPACITY = _instance.CAPACITY
     
-    return G, COST_TEST, OBJ_FUNC, CONSTRAINTS, PICKUP, DELIVERY, CAPACITY
+    return G, COST, OBJ_FUNC, CONSTRAINTS, PICKUP, DELIVERY, CAPACITY

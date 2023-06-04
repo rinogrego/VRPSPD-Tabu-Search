@@ -14,7 +14,7 @@ V = G.nodes
 V_C = [node for node in G.nodes if node != 0]
 PICKUP = np.array([0, 17, 21, 35, 10])
 DELIVERY = np.array([0, 16, 21, 35, 8])
-CAPACITY = 150
+CAPACITY = max(sum(PICKUP), sum(DELIVERY))
 
 for node, (pickup_val, delivery_val) in enumerate(zip(PICKUP, DELIVERY)):
   G.nodes[node]["pickup"] = pickup_val

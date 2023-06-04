@@ -11,7 +11,7 @@ class LP(object):
         self.capacity = capacity
         
     def __str__(self):
-        constraints_string = "\n".join([f"{const : >100}" for const in self.constraints])
+        constraints_string = "\n".join(["{0}   (Eq. {1})".format(f"{const: >150}", f"{idx+1}".zfill(3)) for idx, const in enumerate(self.constraints)])
         _info = {
             "Capacity     (Q)": self.capacity,
             "Pickup       (P)": self.pickup,
@@ -23,11 +23,11 @@ class LP(object):
 
 def construct_problem():
     
-    G, COST_TEST, OBJ_FUNC, CONSTRAINTS, PICKUP, DELIVERY, CAPACITY = data.get(instance="instance_one")
+    G, COST, OBJ_FUNC, CONSTRAINTS, PICKUP, DELIVERY, CAPACITY = data.get(instance="instance_two")
                 
     lp = LP(
         graph=G,
-        cost=COST_TEST,
+        cost=COST,
         objective_function=OBJ_FUNC,
         constraints=CONSTRAINTS,
         pickup=PICKUP,
