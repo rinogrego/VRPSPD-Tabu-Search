@@ -6,6 +6,17 @@ import os
 import sys
 from datetime import datetime
 import pprint
+import argparse
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--log', type=str, help='Specify log filepath for output. Input "cmd" to to display on the command line. Otherwise new file will be automatically created.')
+args = parser.parse_args()
+log_to_cmd = False
+if args.log is not None:
+    if args.log.lower() == 'cmd':
+        log_to_cmd = True
+
 
 class Tabu_Search(lp.LP):
     def __init__(self, lp, N_iter=10, tabu_tenure=5, penalty_value=5, initial_solution=None):
@@ -220,7 +231,10 @@ class Tabu_Search(lp.LP):
                 
             # find admissible move by diversification phase
             while True:
-                print("\nTabu Structure:")
+                print()
+                print(f"{'Current_best_path': <20}:", best_path)
+                print(f"{'Current_best_value': <20}:", best_value)
+                print("Tabu Structure:")
                 pprint.pprint(tabu_structure)
                 # select the move with the lowest penalized value
                 best_move = min(tabu_structure, key=lambda x: tabu_structure[x]["penalty"])
@@ -232,7 +246,6 @@ class Tabu_Search(lp.LP):
                     
                 move_value = tabu_structure[best_move]["move_value"]
                 tabu_time = tabu_structure[best_move]["tabu_time"]
-                print(f"{'Current_path': <20}:", best_path)
                 print(f"{'best_move': <20}:", best_move)
                 print(f"{'move_value': <20}:", move_value)
                 print(f"{'best_move_penalty': <20}:", tabu_structure[best_move]["penalty"])
@@ -292,6 +305,7 @@ class Tabu_Search(lp.LP):
                         print(f"{'status': <20}: Tabu => Inadmissible")
                         # continue searching better move
                         continue
+            print("\nIteration {0} have been reached without finding the next best solution\n".format(self.N_iter))
         
         self.best_solution = best_path
         print("\nTABU SEARCH FINISHED")
@@ -316,7 +330,10 @@ if __name__ == "__main__":
     log_folder = os.path.join(os.getcwd(), "log")
     LOG_FILE = f"{datetime.now().strftime('%m_%d_%Y_%H_%M_%S')}_Log-TS.log"
     os.makedirs(log_folder, exist_ok=True)
-    LOG_FILE_PATH = os.path.join(log_folder, LOG_FILE)
+    if log_to_cmd:
+        LOG_FILE_PATH = None
+    else:
+        LOG_FILE_PATH = os.path.join(log_folder, LOG_FILE)
     
     if LOG_FILE_PATH is not None:
         original_stdout = sys.stdout
