@@ -4,7 +4,7 @@ Implementation of Tabu Search to solve VRPSPD
 
 ## How to Run
 
-Assuming you already have `git` installed in your computer and `numpy` package is already installed for python.
+Assuming you already have `git` installed in your computer and `numpy` and `networkx` packages are already installed for your python.
 
 1. First clone the repository
 
