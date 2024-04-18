@@ -35,7 +35,7 @@ python ts.py
 
 5. If you want to have the results printed directly inside the terminal, then run
 ```
-python ts.py --log
+python ts.py --log cmd
 ```
 <h3>Results Inside Terminal</h3>
 <img src="docs/img-5-tabu-search-cmd.PNG" height="75%" width="75%">
